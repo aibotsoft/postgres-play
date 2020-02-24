@@ -1,23 +1,75 @@
-name: Go
+name: postgres-play
 on: [push]
-jobs:
 
+jobs:
   build:
+    env:
+      CGO_ENABLED: 0
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v2-beta
+        with:
+          go-version: 1.13
 
-    - name: Set up Go 1.13
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13
-      id: go
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+      - name: Build
+        run: go build -o dist/service src/main.go
 
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-    - name: Run
-      run: go run ./src/main.go
+      - name: Docker build
+        run: docker image build -f Dockerfile -t $DOCKER_USERNAME/$GITHUB_WORKFLOW:$GITHUB_RUN_NUMBER .
+
+      - name: Docker login
+        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+      - name: Docker push
+        run: docker image push $DOCKER_USERNAME/$GITHUB_WORKFLOW:$GITHUB_RUN_NUMBER
+
+#  deploy:
+#    env:
+#      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+#      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+#    name: Deploy
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check out code into the Go module directory
+#        uses: actions/checkout@v2
+#
+#      - name: Download build
+#        uses: actions/download-artifact@v1
+#        with:
+#          name: dist
+#
+#      - name: Docker build
+#        run: docker image build -f Dockerfile -t $DOCKER_USERNAME/$GITHUB_WORKFLOW:$GITHUB_RUN_NUMBER .
+#
+#      - name: Docker login
+#        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+#
+#      - name: Docker push
+#        run: docker image push $DOCKER_USERNAME/$GITHUB_WORKFLOW:$GITHUB_RUN_NUMBER
+
+#      - name: Run ls
+#        run: ls
+#      - name: Check dir
+#        run: |
+#          cd dist
+#          ls
+#      - name: Run
+#        run: ./dist/hello
+#      - name: Check go version
+#        run: go version
+#      - name: Run
+#        run: dist/hello
+
+#      - name: Upload build
+#        uses: actions/upload-artifact@v1
+#        with:
+#          name: dist
+#          path: dist/
